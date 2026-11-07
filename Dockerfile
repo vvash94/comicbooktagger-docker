@@ -15,10 +15,12 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # The baseimage strips /etc/passwd and /etc/group down (it regenerates them at
 # container start), so package post-install scripts that run e.g.
-# `chown root:staff` (fontconfig-config) fail. Restore the entries they need.
+# `chown root:staff` (fontconfig-config) fail. Restore the entries they need,
+# plus directories it also strips that fontconfig's post-install writes to.
 RUN grep -q '^root:' /etc/passwd || echo 'root:x:0:0:root:/root:/bin/sh' >> /etc/passwd; \
     grep -q '^root:' /etc/group  || echo 'root:x:0:' >> /etc/group; \
-    grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
+    grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group; \
+    mkdir -p /var/log /var/cache/fontconfig
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -45,10 +47,12 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # The baseimage strips /etc/passwd and /etc/group down (it regenerates them at
 # container start), so package post-install scripts that run e.g.
-# `chown root:staff` (fontconfig-config) fail. Restore the entries they need.
+# `chown root:staff` (fontconfig-config) fail. Restore the entries they need,
+# plus directories it also strips that fontconfig's post-install writes to.
 RUN grep -q '^root:' /etc/passwd || echo 'root:x:0:0:root:/root:/bin/sh' >> /etc/passwd; \
     grep -q '^root:' /etc/group  || echo 'root:x:0:' >> /etc/group; \
-    grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
+    grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group; \
+    mkdir -p /var/log /var/cache/fontconfig
 
 # Python runtime, Debian's PyQt5 (Qt 5.15 built against OpenSSL 3, pulls in the xcb
 # libraries), extra Qt image formats (WebP etc.), CA certificates for Qt's HTTPS,
@@ -60,7 +64,8 @@ RUN apt-get update && \
         qt5-image-formats-plugins \
         ca-certificates \
         libicu72 \
-        fonts-dejavu-core && \
+        fonts-dejavu-core \
+      || { echo '--- /var/log/fontconfig.log ---'; cat /var/log/fontconfig.log 2>/dev/null; exit 1; } && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/comictagger /opt/comictagger
