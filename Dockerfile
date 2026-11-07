@@ -11,6 +11,11 @@ ARG BASEIMAGE=jlesage/baseimage-gui:debian-12-v4
 FROM ${BASEIMAGE} AS builder
 
 ARG CT_VERSION=1.5.5
+ARG DEBIAN_FRONTEND=noninteractive
+
+# The baseimage strips Debian's default 'staff' group, which some package
+# post-install scripts (e.g. fontconfig-config) chown files to.
+RUN grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -29,6 +34,12 @@ FROM ${BASEIMAGE}
 
 ARG CT_VERSION=1.5.5
 ARG ICON_URL=https://raw.githubusercontent.com/vvash94/comicbooktagger-docker/main/assets/icon.png
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# The baseimage strips Debian's default 'staff' group, which some package
+# post-install scripts (e.g. fontconfig-config) chown files to.
+RUN grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
 
 # Python runtime, ICU for pyicu, and the system libraries Qt5's xcb platform plugin needs.
 RUN apt-get update && \
