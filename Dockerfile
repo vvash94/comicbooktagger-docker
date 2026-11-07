@@ -13,9 +13,12 @@ FROM ${BASEIMAGE} AS builder
 ARG CT_VERSION=1.5.5
 ARG DEBIAN_FRONTEND=noninteractive
 
-# The baseimage strips Debian's default 'staff' group, which some package
-# post-install scripts (e.g. fontconfig-config) chown files to.
-RUN grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
+# The baseimage strips /etc/passwd and /etc/group down (it regenerates them at
+# container start), so package post-install scripts that run e.g.
+# `chown root:staff` (fontconfig-config) fail. Restore the entries they need.
+RUN grep -q '^root:' /etc/passwd || echo 'root:x:0:0:root:/root:/bin/sh' >> /etc/passwd; \
+    grep -q '^root:' /etc/group  || echo 'root:x:0:' >> /etc/group; \
+    grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -37,9 +40,12 @@ ARG ICON_URL=https://raw.githubusercontent.com/vvash94/comicbooktagger-docker/ma
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# The baseimage strips Debian's default 'staff' group, which some package
-# post-install scripts (e.g. fontconfig-config) chown files to.
-RUN grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
+# The baseimage strips /etc/passwd and /etc/group down (it regenerates them at
+# container start), so package post-install scripts that run e.g.
+# `chown root:staff` (fontconfig-config) fail. Restore the entries they need.
+RUN grep -q '^root:' /etc/passwd || echo 'root:x:0:0:root:/root:/bin/sh' >> /etc/passwd; \
+    grep -q '^root:' /etc/group  || echo 'root:x:0:' >> /etc/group; \
+    grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
 
 # Python runtime, ICU for pyicu, and the system libraries Qt5's xcb platform plugin needs.
 RUN apt-get update && \
