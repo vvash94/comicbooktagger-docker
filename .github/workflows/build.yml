@@ -94,7 +94,7 @@ jobs:
           curl -fs http://localhost:5800/ >/dev/null
           sleep 10
           docker logs ct 2>&1 | tail -40
-          if docker exec ct sh -c 'grep -qs "bin/comictagger" /proc/[0-9]*/cmdline'; then
+          if docker exec ct sh -c 'grep -qs "bin/[c]omictagger" /proc/[0-9]*/cmdline'; then
             echo "GUI process running"
           else
             echo "ComicTagger GUI is not running"; docker rm -f ct; exit 1

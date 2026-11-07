@@ -6,7 +6,7 @@
 ARG BASEIMAGE=jlesage/baseimage-gui:debian-12-v4
 
 # ---------------------------------------------------------------------------
-# Builder: compile ComicTagger and its native deps (pyicu, unrar-cffi) into a venv
+# Builder: compile ComicTagger's Python deps (incl. native pyicu, unrar-cffi) into a venv
 # ---------------------------------------------------------------------------
 FROM ${BASEIMAGE} AS builder
 
@@ -26,9 +26,12 @@ RUN apt-get update && \
         build-essential pkg-config libicu-dev && \
     rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m venv /opt/comictagger && \
+# PyQt5 comes from Debian's python3-pyqt5 in the runtime image (pip's PyQt5 wheels
+# bundle a Qt built for OpenSSL 1.1, so HTTPS from Qt fails on Debian 12's OpenSSL 3).
+# The venv can see it via --system-site-packages; pip installs everything else.
+RUN python3 -m venv --system-site-packages /opt/comictagger && \
     /opt/comictagger/bin/pip install --no-cache-dir --upgrade pip wheel && \
-    /opt/comictagger/bin/pip install --no-cache-dir "comictagger[all]==${CT_VERSION}"
+    /opt/comictagger/bin/pip install --no-cache-dir "comictagger[7z,cbr]==${CT_VERSION}"
 
 # ---------------------------------------------------------------------------
 # Runtime image
@@ -47,27 +50,16 @@ RUN grep -q '^root:' /etc/passwd || echo 'root:x:0:0:root:/root:/bin/sh' >> /etc
     grep -q '^root:' /etc/group  || echo 'root:x:0:' >> /etc/group; \
     grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
 
-# Python runtime, ICU for pyicu, and the system libraries Qt5's xcb platform plugin needs.
+# Python runtime, Debian's PyQt5 (Qt 5.15 built against OpenSSL 3, pulls in the xcb
+# libraries), extra Qt image formats (WebP etc.), CA certificates for Qt's HTTPS,
+# and ICU for pyicu.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         python3 \
+        python3-pyqt5 \
+        qt5-image-formats-plugins \
+        ca-certificates \
         libicu72 \
-        libdbus-1-3 \
-        libfontconfig1 \
-        libfreetype6 \
-        libgl1 \
-        libglib2.0-0 \
-        libx11-xcb1 \
-        libxcb-icccm4 \
-        libxcb-image0 \
-        libxcb-keysyms1 \
-        libxcb-randr0 \
-        libxcb-render-util0 \
-        libxcb-shape0 \
-        libxcb-xfixes0 \
-        libxcb-xinerama0 \
-        libxcb-xkb1 \
-        libxkbcommon-x11-0 \
         fonts-dejavu-core && \
     rm -rf /var/lib/apt/lists/*
 
