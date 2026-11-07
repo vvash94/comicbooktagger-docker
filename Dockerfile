@@ -13,14 +13,16 @@ FROM ${BASEIMAGE} AS builder
 ARG CT_VERSION=1.5.5
 ARG DEBIAN_FRONTEND=noninteractive
 
-# The baseimage strips /etc/passwd and /etc/group down (it regenerates them at
-# container start), so package post-install scripts that run e.g.
-# `chown root:staff` (fontconfig-config) fail. Restore the entries they need,
-# plus directories it also strips that fontconfig's post-install writes to.
-RUN grep -q '^root:' /etc/passwd || echo 'root:x:0:0:root:/root:/bin/sh' >> /etc/passwd; \
-    grep -q '^root:' /etc/group  || echo 'root:x:0:' >> /etc/group; \
-    grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group; \
-    mkdir -p /var/log /var/cache/fontconfig
+# In the baseimage, /etc/passwd, /etc/group and /var/log are symlinks into
+# locations that only exist once the container is running (it generates them at
+# startup). Package post-install scripts need them at build time: fontconfig-config
+# runs `chown root:staff`, fontconfig writes /var/log/fontconfig.log. Create the
+# symlink targets and the users/groups those scripts expect.
+RUN for p in /var/log /var/cache/fontconfig; do mkdir -p "$(readlink -m "$p")"; done; \
+    for f in /etc/passwd /etc/group; do mkdir -p "$(dirname "$(readlink -m "$f")")"; done; \
+    grep -qs '^root:' /etc/passwd || echo 'root:x:0:0:root:/root:/bin/sh' >> /etc/passwd; \
+    grep -qs '^root:' /etc/group  || echo 'root:x:0:' >> /etc/group; \
+    grep -qs '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -45,14 +47,16 @@ ARG ICON_URL=https://raw.githubusercontent.com/vvash94/comicbooktagger-docker/ma
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# The baseimage strips /etc/passwd and /etc/group down (it regenerates them at
-# container start), so package post-install scripts that run e.g.
-# `chown root:staff` (fontconfig-config) fail. Restore the entries they need,
-# plus directories it also strips that fontconfig's post-install writes to.
-RUN grep -q '^root:' /etc/passwd || echo 'root:x:0:0:root:/root:/bin/sh' >> /etc/passwd; \
-    grep -q '^root:' /etc/group  || echo 'root:x:0:' >> /etc/group; \
-    grep -q '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group; \
-    mkdir -p /var/log /var/cache/fontconfig
+# In the baseimage, /etc/passwd, /etc/group and /var/log are symlinks into
+# locations that only exist once the container is running (it generates them at
+# startup). Package post-install scripts need them at build time: fontconfig-config
+# runs `chown root:staff`, fontconfig writes /var/log/fontconfig.log. Create the
+# symlink targets and the users/groups those scripts expect.
+RUN for p in /var/log /var/cache/fontconfig; do mkdir -p "$(readlink -m "$p")"; done; \
+    for f in /etc/passwd /etc/group; do mkdir -p "$(dirname "$(readlink -m "$f")")"; done; \
+    grep -qs '^root:' /etc/passwd || echo 'root:x:0:0:root:/root:/bin/sh' >> /etc/passwd; \
+    grep -qs '^root:' /etc/group  || echo 'root:x:0:' >> /etc/group; \
+    grep -qs '^staff:' /etc/group || echo 'staff:x:50:' >> /etc/group
 
 # Python runtime, Debian's PyQt5 (Qt 5.15 built against OpenSSL 3, pulls in the xcb
 # libraries), extra Qt image formats (WebP etc.), CA certificates for Qt's HTTPS,
