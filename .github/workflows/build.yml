@@ -75,7 +75,10 @@ jobs:
         if: steps.skip.outputs.skip != 'true'
         run: |
           set -e
-          docker run --rm --entrypoint /opt/comictagger/bin/comictagger comictagger:test --version
+          # comictagger 1.5.x exits 1 after --version, so check the output instead.
+          out=$(docker run --rm --entrypoint /opt/comictagger/bin/comictagger comictagger:test --version 2>&1 || true)
+          echo "$out"
+          echo "$out" | grep -q "ComicTagger ${{ steps.v.outputs.version }}"
           docker run --rm --entrypoint /opt/comictagger/bin/python comictagger:test \
             -c "from PyQt5 import QtWidgets; import icu, unrar.cffi, py7zr; print('python deps OK')"
           missing=$(docker run --rm --entrypoint sh comictagger:test -c \
@@ -91,7 +94,11 @@ jobs:
           curl -fs http://localhost:5800/ >/dev/null
           sleep 10
           docker logs ct 2>&1 | tail -40
-          docker exec ct sh -c 'pgrep -f "comictagger" >/dev/null' && echo "GUI process running"
+          if docker exec ct sh -c 'grep -qs "bin/comictagger" /proc/[0-9]*/cmdline'; then
+            echo "GUI process running"
+          else
+            echo "ComicTagger GUI is not running"; docker rm -f ct; exit 1
+          fi
           docker rm -f ct
 
       - name: Docker metadata
