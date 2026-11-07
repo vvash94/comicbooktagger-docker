@@ -1,0 +1,118 @@
+name: Build and publish image
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "unraid/**"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      ct_version:
+        description: "ComicTagger version to build (blank = latest stable on PyPI)"
+        required: false
+  schedule:
+    - cron: "23 10 * * *"   # daily: build only if a new ComicTagger release exists
+    - cron: "41 11 * * 1"   # weekly (Mon): always rebuild to pick up base-image security fixes
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve versions
+        id: v
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/comictagger"
+          ver="${{ github.event.inputs.ct_version }}"
+          if [ -z "$ver" ]; then
+            ver=$(curl -fsSL https://pypi.org/pypi/comictagger/json | jq -r .info.version)
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "ComicTagger version: $ver"
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip daily run if this version is already published
+        id: skip
+        if: github.event.schedule == '23 10 * * *'
+        run: |
+          if docker manifest inspect "${{ steps.v.outputs.image }}:${{ steps.v.outputs.version }}" >/dev/null 2>&1; then
+            echo "Already published; nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.skip.outputs.skip != 'true'
+
+      - name: Build test image
+        if: steps.skip.outputs.skip != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: comictagger:test
+          build-args: CT_VERSION=${{ steps.v.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        if: steps.skip.outputs.skip != 'true'
+        run: |
+          set -e
+          docker run --rm --entrypoint /opt/comictagger/bin/comictagger comictagger:test --version
+          docker run --rm --entrypoint /opt/comictagger/bin/python comictagger:test \
+            -c "from PyQt5 import QtWidgets; import icu, unrar.cffi, py7zr; print('python deps OK')"
+          missing=$(docker run --rm --entrypoint sh comictagger:test -c \
+            'ldd /opt/comictagger/lib/python3*/site-packages/PyQt5/Qt5/plugins/platforms/libqxcb.so \
+                 /opt/comictagger/lib/python3*/site-packages/PyQt5/Qt5/lib/libQt5XcbQpa.so.5 | grep "not found" || true')
+          if [ -n "$missing" ]; then echo "Missing Qt libraries:"; echo "$missing"; exit 1; fi
+          echo "Qt xcb libraries OK"
+          # Boot the full container and confirm the web UI answers.
+          docker run -d --name ct -p 5800:5800 comictagger:test
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:5800/ >/dev/null && break; sleep 2
+          done
+          curl -fs http://localhost:5800/ >/dev/null
+          sleep 10
+          docker logs ct 2>&1 | tail -40
+          docker exec ct sh -c 'pgrep -f "comictagger" >/dev/null' && echo "GUI process running"
+          docker rm -f ct
+
+      - name: Docker metadata
+        id: meta
+        if: steps.skip.outputs.skip != 'true'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.v.outputs.image }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.v.outputs.version }},enable={{is_default_branch}}
+            type=sha,prefix=sha-
+
+      - name: Push
+        if: steps.skip.outputs.skip != 'true' && github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: CT_VERSION=${{ steps.v.outputs.version }}
+          cache-from: type=gha

@@ -1,0 +1,13 @@
+#!/bin/sh
+# CLI wrapper so `docker exec` uses the same settings (and Comic Vine API key) as the GUI.
+# Example:
+#   docker exec ComicTagger comictagger -s -o -f -t CR -R /comics/MySeries
+export HOME=/config
+
+# docker exec runs as root by default; drop to the container's app user so files
+# written to /config and /comics keep the right ownership (99:100 on Unraid).
+if [ "$(id -u)" = "0" ]; then
+    exec setpriv --reuid="${USER_ID:-1000}" --regid="${GROUP_ID:-1000}" --clear-groups \
+        /opt/comictagger/bin/comictagger "$@"
+fi
+exec /opt/comictagger/bin/comictagger "$@"

@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>ComicTagger</Name>
+  <Repository>ghcr.io/vvash94/comictagger:latest</Repository>
+  <Registry>https://github.com/vvash94/comicbooktagger-docker/pkgs/container/comictagger</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/vvash94/comicbooktagger-docker/issues</Support>
+  <Project>https://github.com/comictagger/comictagger</Project>
+  <Overview>ComicTagger is a multi-platform app for writing metadata to digital comics (CBZ/CBR/CB7), with Comic Vine lookup, batch auto-tagging and file renaming. This container runs the ComicTagger desktop GUI and serves it to your browser (noVNC), so you can tag your library directly on the server. The CLI is also available via "docker exec ComicTagger comictagger ...".&#xD;
+&#xD;
+Note: CBR files are read-only (writing RAR needs the proprietary rar tool). Use "Export to Zip" in ComicTagger to convert them to CBZ.</Overview>
+  <Category>MediaApp:Books Tools:</Category>
+  <WebUI>http://[IP]:[PORT:5800]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/vvash94/comicbooktagger-docker/main/unraid/comictagger.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/vvash94/comicbooktagger-docker/main/assets/icon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <Requires/>
+  <Config Name="WebUI Port" Target="5800" Default="5800" Mode="tcp" Description="Port for the browser-based GUI." Type="Port" Display="always" Required="true" Mask="false">5800</Config>
+  <Config Name="VNC Port" Target="5900" Default="" Mode="tcp" Description="Optional: port for connecting with a regular VNC client. Leave blank to not expose it." Type="Port" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Comics" Target="/comics" Default="/mnt/user/comics" Mode="rw" Description="Your comic library. ComicTagger writes tags into these files, so it needs read/write access." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/comics</Config>
+  <Config Name="AppData" Target="/config" Default="/mnt/user/appdata/comictagger" Mode="rw" Description="ComicTagger settings, Comic Vine API key, cache and logs." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/comictagger</Config>
+  <Config Name="PUID (USER_ID)" Target="USER_ID" Default="99" Mode="" Description="User ID the app runs as. 99 = nobody on Unraid." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID (GROUP_ID)" Target="GROUP_ID" Default="100" Mode="" Description="Group ID the app runs as. 100 = users on Unraid." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="0000" Mode="" Description="Permission mask for new files. 0000 matches Unraid's default share permissions." Type="Variable" Display="advanced" Required="false" Mask="false">0000</Config>
+  <Config Name="Timezone" Target="TZ" Default="America/Los_Angeles" Mode="" Description="Container timezone, e.g. America/New_York." Type="Variable" Display="advanced" Required="false" Mask="false">America/Los_Angeles</Config>
+  <Config Name="Display width" Target="DISPLAY_WIDTH" Default="1600" Mode="" Description="Width (pixels) of the virtual screen." Type="Variable" Display="advanced" Required="false" Mask="false">1600</Config>
+  <Config Name="Display height" Target="DISPLAY_HEIGHT" Default="1000" Mode="" Description="Height (pixels) of the virtual screen." Type="Variable" Display="advanced" Required="false" Mask="false">1000</Config>
+  <Config Name="Keep app running" Target="KEEP_APP_RUNNING" Default="1" Mode="" Description="1 = automatically restart ComicTagger if it is closed or crashes." Type="Variable" Display="advanced" Required="false" Mask="false">1</Config>
+  <Config Name="Dark mode (web UI)" Target="DARK_MODE" Default="0" Mode="" Description="1 = dark theme for the web page around the app." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
+  <Config Name="ComicTagger extra args" Target="COMICTAGGER_ARGS" Default="" Mode="" Description="Optional extra command-line flags passed to the ComicTagger GUI." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Secure connection (HTTPS)" Target="SECURE_CONNECTION" Default="0" Mode="" Description="1 = serve the web UI over HTTPS (self-signed cert). Required for web login." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
+  <Config Name="Web login" Target="WEB_AUTHENTICATION" Default="0" Mode="" Description="1 = require a username/password for the web UI. Needs Secure connection = 1." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
+  <Config Name="Web login username" Target="WEB_AUTHENTICATION_USERNAME" Default="" Mode="" Description="Username for web login." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Web login password" Target="WEB_AUTHENTICATION_PASSWORD" Default="" Mode="" Description="Password for web login." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+</Container>
